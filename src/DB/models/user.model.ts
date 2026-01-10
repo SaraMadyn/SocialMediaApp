@@ -19,6 +19,7 @@ export interface IUser {
     email: string;
     confirmEmailOTP?: string;
     confirmedAt?: Date;
+    changeCredentialsTime: Date;
 
     password: string;
     resetPasswordOTP?: string;
@@ -27,12 +28,8 @@ export interface IUser {
     address?: string;
     gender: GenderEnum;
     role: RoleEnum;
+    profileImage: string;
 
-    refreshTokens?: {
-        token: string;
-        deviceId: string;
-        createdAt: Date;
-    }[];
 
     createdAt: Date;
     updatedAt: Date;
@@ -45,10 +42,12 @@ export const userSchema = new Schema<IUser>(
         email: { type: String, required: true, unique: true },
         confirmEmailOTP: String,
         confirmedAt: Date,
+        changeCredentialsTime: Date,
         password: { type: String, required: true },
         resetPasswordOTP: String,
         phone: String,
         address: String,
+        profileImage: String,
         gender: {
             type: String,
             enum: Object.values(GenderEnum),
@@ -59,13 +58,6 @@ export const userSchema = new Schema<IUser>(
             enum: Object.values(RoleEnum),
             default: RoleEnum.USER,
         },
-        refreshTokens: [
-            {
-                token: { type: String },
-                deviceId: { type: String },
-                createdAt: { type: Date, default: Date.now },
-            }
-        ],
     },
     { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );

@@ -2,8 +2,10 @@
 import jwt, { Secret, SignOptions, JwtPayload } from "jsonwebtoken";
 import { HUserDocument, RoleEnum, UserModel } from "../../DB/models/user.model";
 import { v4 as uuidv4 } from "uuid";
-import { NotFoundException, UnAuthorizedException } from "../response/error.response";
+import { BadRequestException, NotFoundException, UnAuthorizedException } from "../response/error.response";
 import { UserRepository } from "../../DB/repository/user.repository";
+import { TokenRepository } from "../../DB/repository/token.repository";
+import { TokenModel } from "../../DB/models/token.model";
 
 export enum signutureLevelEnum {
   USER = "USER",
@@ -13,6 +15,11 @@ export enum signutureLevelEnum {
 export enum tokenTypeEnum {
   ACCESS = "ACCESS",
   REFRESH = "REFRESH",
+}
+
+export enum LogoutEnum {
+  ONLY = "ONLY",
+  ALL = "ALL",
 }
 
 export const generateToken = async ({
@@ -96,21 +103,22 @@ export const decodedToken = async ({
   authorization: string;
   tokenType?: tokenTypeEnum;
 }) => {
-  const userRepo = new UserRepository(UserModel);
+  const userModel = new UserRepository(UserModel);
+  const tokenModel = new TokenRepository(TokenModel);
 
-  const [role, token] = authorization.split(" ");
+  const [bearer, token] = authorization.split(" ");
 
-  if (!role || !token)
+  if (!bearer || !token)
     throw new UnAuthorizedException("Invalid authorization format");
 
   if (
-    role !== signutureLevelEnum.USER &&
-    role !== signutureLevelEnum.ADMIN
+    bearer !== signutureLevelEnum.USER &&
+    bearer !== signutureLevelEnum.ADMIN
   ) {
     throw new UnAuthorizedException("Invalid role in authorization header");
   }
 
-  const signutures = await getSignuture(role);
+  const signutures = await getSignuture(bearer as signutureLevelEnum);
 
   const decoded = await verifyToken({
     token,
@@ -120,12 +128,33 @@ export const decodedToken = async ({
         : signutures.access_token,
   });
 
-  if (!decoded?._id)
+  if (!decoded?._id || !decoded?.iat)
     throw new UnAuthorizedException("Invalid token payload");
 
-  const user = await userRepo.findOne({ filter: { _id: decoded._id } });
+  if (await tokenModel.findOne({ filter: { jti: decoded.jti as string} }))
+    throw new NotFoundException("Token already revoked");
+
+  const user = await userModel.findOne({ filter: { _id: decoded._id } });
 
   if (!user) throw new NotFoundException("User not found");
 
+  if (user.changeCredentialsTime && decoded.iat * 1000 < user.changeCredentialsTime.getTime()) {
+    throw new UnAuthorizedException("loggedout from all devices");
+}
+
   return { user, decoded };
 };
+
+export const createRevokeToken= async(decoded: JwtPayload) =>{
+  const tokenModel= new TokenRepository(TokenModel);
+  const [results]= await tokenModel.create({
+    data: [{
+      jti: decoded.jti as string,
+      expiresIN: decoded.iat as number, 
+      userId: decoded._id,
+    }]
+  }) || [];
+  if(!results) throw new BadRequestException("fail to revoke token");
+
+  return results;
+}

@@ -18,10 +18,12 @@ exports.userSchema = new mongoose_1.Schema({
     email: { type: String, required: true, unique: true },
     confirmEmailOTP: String,
     confirmedAt: Date,
+    changeCredentialsTime: Date,
     password: { type: String, required: true },
     resetPasswordOTP: String,
     phone: String,
     address: String,
+    profileImage: String,
     gender: {
         type: String,
         enum: Object.values(GenderEnum),
@@ -32,13 +34,6 @@ exports.userSchema = new mongoose_1.Schema({
         enum: Object.values(RoleEnum),
         default: RoleEnum.USER,
     },
-    refreshTokens: [
-        {
-            token: { type: String },
-            deviceId: { type: String },
-            createdAt: { type: Date, default: Date.now },
-        }
-    ],
 }, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } });
 exports.userSchema
     .virtual("username")

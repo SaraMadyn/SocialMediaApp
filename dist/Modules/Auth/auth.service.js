@@ -85,26 +85,5 @@ class AuthenticationService {
         });
         return res.status(200).json({ message: "User confirmed successfully" });
     };
-    logoutDevice = async (req, res) => {
-        const { deviceId } = req.body;
-        if (!deviceId)
-            throw new error_response_1.BadRequestException("Device ID is required");
-        const user = await this._userModel.findOne({ filter: { _id: req.user?._id } });
-        if (!user)
-            throw new error_response_1.NotFoundException("User not found");
-        if (!user.refreshTokens)
-            user.refreshTokens = [];
-        user.refreshTokens = user.refreshTokens.filter(rt => rt.deviceId !== deviceId);
-        await user.save();
-        return res.status(200).json({ message: "Logged out from this device successfully" });
-    };
-    logoutAllDevices = async (req, res) => {
-        const user = await this._userModel.findOne({ filter: { _id: req.user?._id } });
-        if (!user)
-            throw new error_response_1.NotFoundException("User not found");
-        user.refreshTokens = [];
-        await user.save();
-        return res.status(200).json({ message: "Logged out from all devices successfully" });
-    };
 }
 exports.default = new AuthenticationService();
